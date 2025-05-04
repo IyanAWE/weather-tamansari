@@ -62,14 +62,24 @@ def weather_emoji(desc):
     else:
         return "❓ " + desc
 
-# === SIMPAN KE GOOGLE SHEETS ===
+# === SIMPAN KE GOOGLE SHEETS (append, bukan overwrite) ===
 def simpan_ke_google_sheets(df):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
     client = gspread.authorize(creds)
     sheet = client.open(SPREADSHEET_NAME).sheet1
-    sheet.clear()
-    set_with_dataframe(sheet, df)
+
+    # Ambil jumlah baris eksisting
+    existing = sheet.get_all_values()
+    if not existing:
+        # Tulis header kalau kosong
+        header = list(df.columns)
+        sheet.append_row(header)
+
+    # Ambil data cuaca terbaru dari df
+    last_row = df.tail(1).values.tolist()[0]
+    sheet.append_row(last_row)
+
 
 # === AMBIL DATA DARI OPENWEATHER ===
 def fetch_weather():
