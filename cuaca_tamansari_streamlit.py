@@ -135,4 +135,22 @@ if temp:
     if len(df) > 1:
         st.line_chart(df.set_index("Time")["Temperature"])
 
+    # === HOURLY FORECAST (next 12 hours) ===
+    try:
+        response = requests.get(f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en")
+        data = response.json()
+        if 'hourly' in data:
+            hourly_forecast = data['hourly'][:12]  # Next 12 hours
+            hourly_data = []
+            for h in hourly_forecast:
+                ts = datetime.fromtimestamp(h['dt'], tz=wib).strftime('%H:%M')
+                temp_hour = h['temp']
+                desc_hour = h['weather'][0]['description'].capitalize()
+                hourly_data.append({'Time': ts, 'Temp (°C)': temp_hour, 'Weather': desc_hour})
+
+            st.subheader("📆 Prakiraan 12 Jam ke Depan")
+            st.table(pd.DataFrame(hourly_data))
+    except:
+        st.warning("⚠️ Gagal mengambil data hourly forecast.")
+
 st.caption("🔁 Auto-updated every 10 minutes • Data from OpenWeather • Synced to Google Sheets")
