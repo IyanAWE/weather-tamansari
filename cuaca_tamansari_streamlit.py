@@ -2,21 +2,26 @@ import streamlit as st
 import requests
 import pandas as pd
 import json
+import base64
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from gspread_dataframe import set_with_dataframe
-import json
 
-GOOGLE_CREDS = json.loads(st.secrets["GOOGLE_CREDS"])
+# === DECODE BASE64 CREDENTIALS ===
+def fix_padding(b64_string):
+    return b64_string + "=" * (-len(b64_string) % 4)
+
+b64_creds = st.secrets["GOOGLE_CREDS"]
+fixed = fix_padding(b64_creds)
+GOOGLE_CREDS = json.loads(base64.b64decode(fixed).decode("utf-8"))
 
 # === KONFIGURASI ===
 LAT = -6.90389
 LON = 107.61861
 SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
-GOOGLE_CREDS = st.secrets["GOOGLE_CREDS"]
 
 st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="centered")
 st.title("🌧️ Cuaca Real-Time Tamansari, Bandung")
@@ -58,8 +63,7 @@ def weather_emoji(desc):
 # === SIMPAN KE GOOGLE SHEETS ===
 def simpan_ke_google_sheets(df):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_dict = json.loads(GOOGLE_CREDS)
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
     client = gspread.authorize(creds)
     sheet = client.open(SPREADSHEET_NAME).sheet1
     sheet.clear()
