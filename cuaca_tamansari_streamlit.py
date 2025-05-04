@@ -21,7 +21,8 @@ GOOGLE_CREDS = json.loads(base64.b64decode(fixed).decode("utf-8"))
 # === KONFIGURASI ===
 LAT = -6.90389
 LON = 107.61861
-SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
+SPREADSHEET_NAME = "Data Streamlit Cuaca Tamansari"
+SPREADSHEET_NAME2 = "Forecast Cuaca Tamansari"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 wib = timezone("Asia/Jakarta")
 
@@ -113,7 +114,7 @@ def simpan_forecast_ke_sheets(df_forecast):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("Forecast Cuaca Tamansari")
+    spreadsheet = client.open(SPREADSHEET_NAME2)
 
     try:
         worksheet = spreadsheet.worksheet("Forecast")
