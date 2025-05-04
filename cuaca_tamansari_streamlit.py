@@ -109,6 +109,23 @@ def fetch_weather():
         st.error(f"Gagal ambil data: {e}")
         return None, None, None, None, None, None
 
+def simpan_forecast_ke_sheets(df_forecast):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open(Forecast Cuaca Tamansari)
+
+    try:
+        worksheet = spreadsheet.worksheet("Forecast")
+    except gspread.exceptions.WorksheetNotFound:
+        worksheet = spreadsheet.add_worksheet(title="Forecast", rows="1000", cols="10")
+
+    worksheet.clear()
+    worksheet.append_row(df_forecast.columns.tolist())
+    for row in df_forecast.values.tolist():
+        worksheet.append_row(row)
+
+
 # === JALANKAN FETCH ===
 do_refresh = st.button("Refresh Now") or refresh_trigger > 0
 
@@ -152,5 +169,7 @@ if temp:
             st.table(pd.DataFrame(hourly_data))
     except:
         st.warning("⚠️ Gagal mengambil data hourly forecast.")
+
+
 
 st.caption("🔁 Auto-updated every 10 minutes • Data from OpenWeather • Synced to Google Sheets")
