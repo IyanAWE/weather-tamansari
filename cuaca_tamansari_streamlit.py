@@ -8,6 +8,8 @@ from streamlit_autorefresh import st_autorefresh
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from gspread_dataframe import set_with_dataframe
+from pytz import timezone
+
 
 # === DECODE BASE64 CREDENTIALS ===
 def fix_padding(b64_string):
@@ -83,7 +85,8 @@ def fetch_weather():
         icon = current['weather'][0]['icon']
         icon_url = f"https://openweathermap.org/img/wn/{icon}@2x.png"
         wind = current.get('wind_speed', 0)
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        wib = timezone("Asia/Jakarta")
+        timestamp = datetime.now(wib).strftime('%Y-%m-%d %H:%M:%S')
 
         st.session_state['data_history'].append({
             'Time': timestamp,
