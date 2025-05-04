@@ -113,7 +113,7 @@ def simpan_forecast_ke_sheets(df_forecast):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
     client = gspread.authorize(creds)
-    spreadsheet = client.open(Forecast Cuaca Tamansari)
+    spreadsheet = client.open("Forecast Cuaca Tamansari")
 
     try:
         worksheet = spreadsheet.worksheet("Forecast")
