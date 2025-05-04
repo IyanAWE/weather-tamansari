@@ -7,6 +7,9 @@ from streamlit_autorefresh import st_autorefresh
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from gspread_dataframe import set_with_dataframe
+import json
+
+GOOGLE_CREDS = json.loads(st.secrets["GOOGLE_CREDS"])
 
 # === KONFIGURASI ===
 LAT = -6.90389
