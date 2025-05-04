@@ -10,7 +10,6 @@ import gspread
 from gspread_dataframe import set_with_dataframe
 from pytz import timezone
 
-
 # === DECODE BASE64 CREDENTIALS ===
 def fix_padding(b64_string):
     return b64_string + "=" * (-len(b64_string) % 4)
@@ -24,13 +23,15 @@ LAT = -6.90389
 LON = 107.61861
 SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
+wib = timezone("Asia/Jakarta")
 
 st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="centered")
 st.title("🌧️ Cuaca Real-Time Tamansari, Bandung")
 
-# Auto-refresh tiap 10 menit (600.000 ms)
-st_autorefresh(interval=600000, key="data_refresh")
+# === AUTO REFRESH TRIGGER ===
+refresh_trigger = st_autorefresh(interval=600000, key="data_refresh")  # 10 menit
 
+# === SESSION STATE ===
 if 'data_history' not in st.session_state:
     st.session_state['data_history'] = []
 
@@ -47,9 +48,7 @@ def weather_emoji(desc):
         return "❄️ " + desc
     elif any(x in desc for x in ["mist", "smoke", "haze", "fog"]):
         return "🌫️ " + desc
-    elif any(x in desc for x in ["sand", "dust", "ash"]):
-        return "🌪️ " + desc
-    elif any(x in desc for x in ["squall", "tornado"]):
+    elif any(x in desc for x in ["sand", "dust", "ash", "squall", "tornado"]):
         return "🌪️ " + desc
     elif "clear" in desc:
         return "☀️ " + desc
@@ -62,26 +61,22 @@ def weather_emoji(desc):
     else:
         return "❓ " + desc
 
-# === SIMPAN KE GOOGLE SHEETS (append, bukan overwrite) ===
+# === SIMPAN KE GOOGLE SHEETS ===
 def simpan_ke_google_sheets(df):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
     client = gspread.authorize(creds)
     sheet = client.open(SPREADSHEET_NAME).sheet1
 
-    # Ambil jumlah baris eksisting
     existing = sheet.get_all_values()
     if not existing:
-        # Tulis header kalau kosong
         header = list(df.columns)
         sheet.append_row(header)
 
-    # Ambil data cuaca terbaru dari df
     last_row = df.tail(1).values.tolist()[0]
     sheet.append_row(last_row)
 
-
-# === AMBIL DATA DARI OPENWEATHER ===
+# === FETCH DATA ===
 def fetch_weather():
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en"
     try:
@@ -95,7 +90,6 @@ def fetch_weather():
         icon = current['weather'][0]['icon']
         icon_url = f"https://openweathermap.org/img/wn/{icon}@2x.png"
         wind = current.get('wind_speed', 0)
-        wib = timezone("Asia/Jakarta")
         timestamp = datetime.now(wib).strftime('%Y-%m-%d %H:%M:%S')
 
         st.session_state['data_history'].append({
@@ -115,8 +109,15 @@ def fetch_weather():
         st.error(f"Gagal ambil data: {e}")
         return None, None, None, None, None, None
 
-# === JALANKAN ===
-temp, desc, humidity, wind, icon_url, timestamp = fetch_weather()
+# === JALANKAN FETCH ===
+do_refresh = st.button("Refresh Now") or refresh_trigger > 0
+
+if do_refresh:
+    temp, desc, humidity, wind, icon_url, timestamp = fetch_weather()
+else:
+    temp, desc, humidity, wind, icon_url, timestamp = None, None, None, None, None, None
+
+# === TAMPILKAN UI ===
 if temp:
     df = pd.DataFrame(st.session_state['data_history'])
 
@@ -130,6 +131,8 @@ if temp:
 
     st.metric("💧 Humidity", f"{humidity}%")
     st.metric("🌬️ Wind Speed", f"{wind} km/h")
-    st.line_chart(df.set_index("Time")["Temperature"])
+
+    if len(df) > 1:
+        st.line_chart(df.set_index("Time")["Temperature"])
 
 st.caption("🔁 Auto-updated every 10 minutes • Data from OpenWeather • Synced to Google Sheets")
