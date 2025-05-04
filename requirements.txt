@@ -5,3 +5,4 @@ streamlit-autorefresh
 gspread
 gspread_dataframe
 oauth2client
+pytz
