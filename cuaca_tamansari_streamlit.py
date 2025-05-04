@@ -11,7 +11,7 @@ from gspread_dataframe import set_with_dataframe
 # === KONFIGURASI ===
 LAT = -6.90389
 LON = 107.61861
-SPREADSHEET_NAME = "cuaca_bandung"
+SPREADSHEET_NAME = "Data_Streamlit_Cuaca_Bandung"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 GOOGLE_CREDS = st.secrets["GOOGLE_CREDS"]
 
