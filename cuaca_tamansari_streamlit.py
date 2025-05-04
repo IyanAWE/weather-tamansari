@@ -14,7 +14,7 @@ GOOGLE_CREDS = json.loads(st.secrets["GOOGLE_CREDS"])
 # === KONFIGURASI ===
 LAT = -6.90389
 LON = 107.61861
-SPREADSHEET_NAME = "Data_Streamlit_Cuaca_Bandung"
+SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 GOOGLE_CREDS = st.secrets["GOOGLE_CREDS"]
 
