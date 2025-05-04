@@ -1,34 +1,30 @@
 import streamlit as st
 import requests
 import pandas as pd
-import os
+import json
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-import os
+from oauth2client.service_account import ServiceAccountCredentials
+import gspread
+from gspread_dataframe import set_with_dataframe
 
-# --- CONFIG ---
-API_KEY = os.getenv("OPENWEATHER_API_KEY")
+# === KONFIGURASI ===
 LAT = -6.90389
 LON = 107.61861
-DATA_CSV = "data_cuaca_tamansari.csv"
+SPREADSHEET_NAME = "cuaca_bandung"
+API_KEY = st.secrets["OPENWEATHER_API_KEY"]
+GOOGLE_CREDS = st.secrets["GOOGLE_CREDS"]
 
-st.set_page_config(page_title="Tamansari Weather", page_icon="🌦️", layout="centered")
-st.title("🌦️ Real-Time Weather in Tamansari, Bandung")
+st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="centered")
+st.title("🌧️ Cuaca Real-Time Tamansari, Bandung")
 
-# Refresh every 10 minutes
-refresh_counter = st_autorefresh(interval=600 * 1000, key="auto_refresh")
+# Auto-refresh tiap 10 menit (600.000 ms)
+st_autorefresh(interval=600000, key="data_refresh")
 
-# Init history
 if 'data_history' not in st.session_state:
-    if os.path.exists(DATA_CSV):
-        st.session_state['data_history'] = pd.read_csv(DATA_CSV).to_dict('records')
-    else:
-        st.session_state['data_history'] = []
+    st.session_state['data_history'] = []
 
-placeholder = st.empty()
-chart_placeholder = st.empty()
-
-# --- WEATHER ICON EMOJI MAP ---
+# === EMOJI CUACA ===
 def weather_emoji(desc):
     desc = desc.lower()
     if "thunderstorm" in desc:
@@ -39,11 +35,11 @@ def weather_emoji(desc):
         return "🌧️ " + desc
     elif "snow" in desc:
         return "❄️ " + desc
-    elif "mist" in desc or "smoke" in desc or "haze" in desc or "fog" in desc:
+    elif any(x in desc for x in ["mist", "smoke", "haze", "fog"]):
         return "🌫️ " + desc
-    elif "sand" in desc or "dust" in desc or "ash" in desc:
+    elif any(x in desc for x in ["sand", "dust", "ash"]):
         return "🌪️ " + desc
-    elif "squall" in desc or "tornado" in desc:
+    elif any(x in desc for x in ["squall", "tornado"]):
         return "🌪️ " + desc
     elif "clear" in desc:
         return "☀️ " + desc
@@ -56,7 +52,17 @@ def weather_emoji(desc):
     else:
         return "❓ " + desc
 
-# --- FETCH WEATHER DATA ---
+# === SIMPAN KE GOOGLE SHEETS ===
+def simpan_ke_google_sheets(df):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds_dict = json.loads(GOOGLE_CREDS)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open(SPREADSHEET_NAME).sheet1
+    sheet.clear()
+    set_with_dataframe(sheet, df)
+
+# === AMBIL DATA DARI OPENWEATHER ===
 def fetch_weather():
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en"
     try:
@@ -66,51 +72,44 @@ def fetch_weather():
         current = data['current']
         temp = current['temp']
         humidity = current['humidity']
-        description = current['weather'][0]['description']
+        desc = current['weather'][0]['description']
         icon = current['weather'][0]['icon']
         icon_url = f"https://openweathermap.org/img/wn/{icon}@2x.png"
-        wind_speed = current.get('wind_speed', 0)
+        wind = current.get('wind_speed', 0)
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         st.session_state['data_history'].append({
             'Time': timestamp,
             'Temperature': temp,
             'Humidity': humidity,
-            'Weather': description,
-            'Wind_kmh': wind_speed
+            'Weather': desc,
+            'Wind_kmh': wind
         })
 
         df = pd.DataFrame(st.session_state['data_history'])
-        df.to_csv(DATA_CSV, index=False)
+        simpan_ke_google_sheets(df)
 
-        return temp, description, humidity, wind_speed, icon_url, timestamp
+        return temp, desc, humidity, wind, icon_url, timestamp
 
     except Exception as e:
-        st.error(f"Failed to fetch data: {e}")
+        st.error(f"Gagal ambil data: {e}")
         return None, None, None, None, None, None
 
-# --- UI HANDLING ---
-show_ui = False
-if st.button("Refresh Now") or refresh_counter > 0:
-    temp, desc, humidity, wind, icon_url, time_str = fetch_weather()
-    show_ui = temp is not None
-
-if show_ui:
+# === JALANKAN ===
+temp, desc, humidity, wind, icon_url, timestamp = fetch_weather()
+if temp:
     df = pd.DataFrame(st.session_state['data_history'])
 
-    with placeholder.container():
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.image(icon_url, width=100)
-        with col2:
-            st.metric("🌡️ Temperature", f"{temp} °C")
-            st.markdown(f"### {weather_emoji(desc)}")
-            st.caption(f"Last updated: {time_str}")
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.image(icon_url, width=100)
+    with col2:
+        st.metric("🌡️ Temperature", f"{temp} °C")
+        st.markdown(f"### {weather_emoji(desc)}")
+        st.caption(f"Last updated: {timestamp}")
 
-        st.metric("💧 Humidity", f"{humidity}%")
-        st.metric("🌬️ Wind Speed", f"{wind} km/h")
+    st.metric("💧 Humidity", f"{humidity}%")
+    st.metric("🌬️ Wind Speed", f"{wind} km/h")
+    st.line_chart(df.set_index("Time")["Temperature"])
 
-    with chart_placeholder.container():
-        st.line_chart(df.set_index('Time')['Temperature'])
-
-st.caption("🔁 Powered by OpenWeather • Auto-updates every 10 minutes • Icons + description synced 🚀")
+st.caption("🔁 Auto-updated every 10 minutes • Data from OpenWeather • Synced to Google Sheets")
