@@ -73,4 +73,4 @@ MIT License. Bebas digunakan untuk keperluan edukasi, riset, dan proyek lingkung
 
 ## 🙌 Kontribusi
 
-Kalau kamu punya ide untuk integrasi dengan BMKG, prediksi cuaca jangka panjang, atau export CSV, feel free buat pull request atau open issue 🚀
+Kalau Anda punya ide untuk integrasi dengan BMKG, prediksi cuaca jangka panjang, atau export CSV, feel free buat pull request atau open issue 🚀
