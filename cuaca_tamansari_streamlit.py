@@ -22,7 +22,6 @@ GOOGLE_CREDS = json.loads(base64.b64decode(fixed).decode("utf-8"))
 LAT = -6.90389
 LON = 107.61861
 SPREADSHEET_NAME = "Data Streamlit Cuaca Tamansari"
-SPREADSHEET_NAMEE = "Forecast Cuaca Tamansari"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 wib = timezone("Asia/Jakarta")
 
@@ -109,22 +108,6 @@ def fetch_weather():
     except Exception as e:
         st.error(f"Gagal ambil data: {e}")
         return None, None, None, None, None, None
-
-def simpan_forecast_ke_sheets(df_forecast):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
-    client = gspread.authorize(creds)
-    spreadsheet = client.open(SPREADSHEET_NAMEE)
-
-    try:
-        worksheet = spreadsheet.worksheet("Forecast")
-    except gspread.exceptions.WorksheetNotFound:
-        worksheet = spreadsheet.add_worksheet(title="Forecast", rows="1000", cols="10")
-
-    worksheet.clear()
-    worksheet.append_row(df_forecast.columns.tolist())
-    for row in df_forecast.values.tolist():
-        worksheet.append_row(row)
 
 
 # === JALANKAN FETCH ===
