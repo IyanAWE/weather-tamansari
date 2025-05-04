@@ -21,7 +21,7 @@ GOOGLE_CREDS = json.loads(base64.b64decode(fixed).decode("utf-8"))
 # === KONFIGURASI ===
 LAT = -6.90389
 LON = 107.61861
-SPREADSHEET_NAME = "Data Streamlit Cuaca Tamansari"
+SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
 API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 wib = timezone("Asia/Jakarta")
 
@@ -108,7 +108,6 @@ def fetch_weather():
     except Exception as e:
         st.error(f"Gagal ambil data: {e}")
         return None, None, None, None, None, None
-
 
 # === JALANKAN FETCH ===
 do_refresh = st.button("Refresh Now") or refresh_trigger > 0
