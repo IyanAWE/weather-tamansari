@@ -4,9 +4,10 @@ import pandas as pd
 import os
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+import os
 
 # --- CONFIG ---
-API_KEY = "7bad6753cde7ccc9fa35d70ca8854c68"
+API_KEY = os.getenv("OPENWEATHER_API_KEY")
 LAT = -6.90389
 LON = 107.61861
 DATA_CSV = "data_cuaca_tamansari.csv"
