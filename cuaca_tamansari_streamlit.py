@@ -22,14 +22,14 @@ GOOGLE_CREDS = json.loads(base64.b64decode(fixed).decode("utf-8"))
 LAT = -6.90389
 LON = 107.61861
 SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
-API_KEY = st.secrets["OPENWEATHER_API_KEY"]
+BMKG_SPREADSHEET_ID = "1Eac7sce0H0pkg3PQslBhjPcAc_5nMw-AFFZCgKUabNQ"
 wib = timezone("Asia/Jakarta")
 
-st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="centered")
-st.title("🌧️ Cuaca Real-Time Tamansari, Bandung")
+st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="wide")
+st.title("🌧️ Dashboard Cuaca Tamansari: OpenWeather vs BMKG (OCR)")
 
 # === AUTO REFRESH TRIGGER ===
-refresh_trigger = st_autorefresh(interval=600000, key="data_refresh")  # 10 menit
+refresh_trigger = st_autorefresh(interval=900000, key="data_refresh")  # 15 menit
 
 # === SESSION STATE ===
 if 'data_history' not in st.session_state:
@@ -76,7 +76,18 @@ def simpan_ke_google_sheets(df):
     last_row = df.tail(1).values.tolist()[0]
     sheet.append_row(last_row)
 
-# === FETCH DATA ===
+# === BACA DATA DARI BMKG SHEET ===
+def ambil_data_bmkg_sheet():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(BMKG_SPREADSHEET_ID).sheet1
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
+
+# === FETCH DATA OPENWEATHER ===
+API_KEY = st.secrets["OPENWEATHER_API_KEY"]
+
 def fetch_weather():
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en"
     try:
@@ -106,53 +117,46 @@ def fetch_weather():
         return temp, desc, humidity, wind, icon_url, timestamp
 
     except Exception as e:
-        st.error(f"Gagal ambil data: {e}")
+        st.error(f"Gagal ambil data OpenWeather: {e}")
         return None, None, None, None, None, None
 
 # === JALANKAN FETCH ===
-do_refresh = st.button("Refresh Now") or refresh_trigger > 0
+do_refresh = st.button("🔁 Refresh Now") or refresh_trigger > 0
 
 if do_refresh:
     temp, desc, humidity, wind, icon_url, timestamp = fetch_weather()
 else:
     temp, desc, humidity, wind, icon_url, timestamp = None, None, None, None, None, None
 
-# === TAMPILKAN UI ===
-if temp:
-    df = pd.DataFrame(st.session_state['data_history'])
+# === UI DISPLAY (2 KOLOM) ===
+col1, col2 = st.columns(2)
 
-    col1, col2 = st.columns([1, 2])
-    with col1:
+with col1:
+    st.header("📡 OpenWeather (Live API)")
+    if temp:
         st.image(icon_url, width=100)
-    with col2:
         st.metric("🌡️ Temperature", f"{temp} °C")
+        st.metric("💧 Humidity", f"{humidity}%")
+        st.metric("🌬️ Wind Speed", f"{wind} km/h")
         st.markdown(f"### {weather_emoji(desc)}")
         st.caption(f"Last updated: {timestamp}")
+    else:
+        st.info("Belum ada data OpenWeather.")
 
-    st.metric("💧 Humidity", f"{humidity}%")
-    st.metric("🌬️ Wind Speed", f"{wind} km/h")
-
-    if len(df) > 1:
-        st.line_chart(df.set_index("Time")["Temperature"])
-
-    # === HOURLY FORECAST (next 12 hours) ===
+with col2:
+    st.header("🛰️ BMKG via OCR (Google Sheets)")
     try:
-        response = requests.get(f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en")
-        data = response.json()
-        if 'hourly' in data:
-            hourly_forecast = data['hourly'][:12]  # Next 12 hours
-            hourly_data = []
-            for h in hourly_forecast:
-                ts = datetime.fromtimestamp(h['dt'], tz=wib).strftime('%H:%M')
-                temp_hour = h['temp']
-                desc_hour = h['weather'][0]['description'].capitalize()
-                hourly_data.append({'Time': ts, 'Temp (°C)': temp_hour, 'Weather': desc_hour})
+        df_bmkg = ambil_data_bmkg_sheet()
+        if not df_bmkg.empty:
+            latest = df_bmkg.tail(1).squeeze()
+            st.metric("🌡️ Temperature", f"{latest['Temperature']} °C")
+            st.metric("💧 Humidity", f"{latest['Humidity']}%")
+            st.metric("🌬️ Wind Speed", f"{latest['Wind_kmh']} km/h")
+            st.markdown(f"### ☁️ {latest['Weather']}")
+            st.caption(f"Last updated: {latest['Time']}")
+        else:
+            st.info("Belum ada data dari Sheet BMKG.")
+    except Exception as e:
+        st.warning(f"⚠️ Gagal ambil data dari Sheet BMKG: {e}")
 
-            st.subheader("📆 Prakiraan 12 Jam ke Depan")
-            st.table(pd.DataFrame(hourly_data))
-    except:
-        st.warning("⚠️ Gagal mengambil data hourly forecast.")
-
-
-
-st.caption("🔁 Auto-updated every 10 minutes • Data from OpenWeather • Synced to Google Sheets")
+st.caption("🔁 Auto-updated every 15 minutes • Left: OpenWeather API • Right: BMKG OCR via Sheets")
