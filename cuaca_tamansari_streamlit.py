@@ -30,7 +30,7 @@ st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="wi
 st.title("🌧️ Dashboard Cuaca Tamansari: OpenWeather vs BMKG (OCR)")
 
 # === AUTO REFRESH TRIGGER ===
-refresh_trigger = st_autorefresh(interval=900000, key="data_refresh")  # 15 menit
+refresh_trigger = st_autorefresh(interval=450000, key="data_refresh")  # 15 menit
 
 if 'data_history' not in st.session_state:
     st.session_state['data_history'] = []
