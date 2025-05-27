@@ -32,11 +32,9 @@ st.title("🌧️ Dashboard Cuaca Tamansari: OpenWeather vs BMKG (OCR)")
 # === AUTO REFRESH TRIGGER ===
 refresh_trigger = st_autorefresh(interval=900000, key="data_refresh")  # 15 menit
 
-# === SESSION STATE ===
 if 'data_history' not in st.session_state:
     st.session_state['data_history'] = []
 
-# === EMOJI CUACA ===
 def weather_emoji(desc):
     desc = desc.lower()
     if "thunderstorm" in desc:
@@ -77,7 +75,7 @@ def simpan_ke_google_sheets(df):
     last_row = df.tail(1).values.tolist()[0]
     sheet.append_row(last_row)
 
-# === BACA DATA DARI BMKG SHEET ===
+# === BACA DATA DARI BMKG (Real-Time + Forecast) ===
 def ambil_data_bmkg_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
@@ -86,13 +84,20 @@ def ambil_data_bmkg_sheet():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
-# === FETCH DATA OPENWEATHER ===
+def ambil_forecast_bmkg():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
+    client = gspread.authorize(creds)
+    worksheet = client.open_by_key(BMKG_SPREADSHEET_ID).worksheet("HourlyForecast")
+    data = worksheet.get_all_records()
+    return pd.DataFrame(data)
+
+# === FETCH OPENWEATHER DATA ===
 def fetch_weather():
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en"
     try:
         response = requests.get(url)
         data = response.json()
-
         current = data['current']
         temp = current['temp']
         humidity = current['humidity']
@@ -114,12 +119,10 @@ def fetch_weather():
         simpan_ke_google_sheets(df)
 
         return temp, desc, humidity, wind, icon_url, timestamp
-
     except Exception as e:
         st.error(f"Gagal ambil data OpenWeather: {e}")
         return None, None, None, None, None, None
 
-# === JALANKAN FETCH ===
 do_refresh = st.button("🔁 Refresh Now") or refresh_trigger > 0
 
 if do_refresh:
@@ -127,10 +130,9 @@ if do_refresh:
 else:
     temp, desc, humidity, wind, icon_url, timestamp = None, None, None, None, None, None
 
-# === UI DISPLAY (2 KOLOM) ===
+# === UI: 2 KOLOM
 col1, col2 = st.columns(2)
 
-# === KOLOM 1: OpenWeather ===
 with col1:
     st.header("📡 OpenWeather (Live API)")
     if temp:
@@ -141,7 +143,6 @@ with col1:
         st.markdown(f"### {weather_emoji(desc)}")
         st.caption(f"Last updated: {timestamp}")
 
-        # === HOURLY FORECAST ===
         try:
             response = requests.get(f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en")
             data = response.json()
@@ -153,15 +154,13 @@ with col1:
                     temp_hour = h['temp']
                     desc_hour = h['weather'][0]['description'].capitalize()
                     hourly_data.append({'Time': ts, 'Temp (°C)': temp_hour, 'Weather': desc_hour})
-
-                st.subheader("📆 Prakiraan 12 Jam ke Depan")
-                st.table(pd.DataFrame(hourly_data))
+                st.subheader("📆 Forecast 12 Jam (OpenWeather)")
+                st.dataframe(pd.DataFrame(hourly_data))
         except Exception as e:
-            st.warning(f"⚠️ Gagal mengambil data hourly forecast: {e}")
+            st.warning(f"Gagal ambil data forecast: {e}")
     else:
         st.info("Belum ada data OpenWeather.")
 
-# === KOLOM 2: BMKG OCR ===
 with col2:
     st.header("🛰️ BMKG via OCR (Google Sheets)")
     try:
@@ -174,8 +173,17 @@ with col2:
             st.markdown(f"### ☁️ {latest['Weather']}")
             st.caption(f"Last updated: {latest['Time']}")
         else:
-            st.info("Belum ada data dari Sheet BMKG.")
+            st.info("Belum ada data dari BMKG.")
     except Exception as e:
-        st.warning(f"⚠️ Gagal ambil data dari Sheet BMKG: {e}")
+        st.warning(f"⚠️ Gagal baca BMKG Real-Time: {e}")
 
-st.caption("🔁 Auto-updated every 15 minutes • Kiri: OpenWeather API • Kanan: BMKG OCR via Google Sheets")
+    # === Forecast BMKG OCR
+    try:
+        df_forecast = ambil_forecast_bmkg()
+        if not df_forecast.empty:
+            st.subheader("📆 Forecast BMKG (OCR)")
+            st.dataframe(df_forecast)
+    except Exception as e:
+        st.warning(f"⚠️ Gagal ambil forecast BMKG: {e}")
+
+st.caption("🔁 Auto-refresh tiap 15 menit | Kiri: OpenWeather API • Kanan: BMKG OCR + Forecast")
