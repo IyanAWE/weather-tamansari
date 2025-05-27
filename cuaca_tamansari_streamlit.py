@@ -23,6 +23,7 @@ LAT = -6.90389
 LON = 107.61861
 SPREADSHEET_NAME = "Data Streamlit Cuaca Bandung"
 BMKG_SPREADSHEET_ID = "1Eac7sce0H0pkg3PQslBhjPcAc_5nMw-AFFZCgKUabNQ"
+API_KEY = st.secrets["OPENWEATHER_API_KEY"]
 wib = timezone("Asia/Jakarta")
 
 st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="wide")
@@ -86,8 +87,6 @@ def ambil_data_bmkg_sheet():
     return pd.DataFrame(data)
 
 # === FETCH DATA OPENWEATHER ===
-API_KEY = st.secrets["OPENWEATHER_API_KEY"]
-
 def fetch_weather():
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en"
     try:
@@ -131,6 +130,7 @@ else:
 # === UI DISPLAY (2 KOLOM) ===
 col1, col2 = st.columns(2)
 
+# === KOLOM 1: OpenWeather ===
 with col1:
     st.header("📡 OpenWeather (Live API)")
     if temp:
@@ -140,9 +140,28 @@ with col1:
         st.metric("🌬️ Wind Speed", f"{wind} km/h")
         st.markdown(f"### {weather_emoji(desc)}")
         st.caption(f"Last updated: {timestamp}")
+
+        # === HOURLY FORECAST ===
+        try:
+            response = requests.get(f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en")
+            data = response.json()
+            if 'hourly' in data:
+                hourly_forecast = data['hourly'][:12]
+                hourly_data = []
+                for h in hourly_forecast:
+                    ts = datetime.fromtimestamp(h['dt'], tz=wib).strftime('%H:%M')
+                    temp_hour = h['temp']
+                    desc_hour = h['weather'][0]['description'].capitalize()
+                    hourly_data.append({'Time': ts, 'Temp (°C)': temp_hour, 'Weather': desc_hour})
+
+                st.subheader("📆 Prakiraan 12 Jam ke Depan")
+                st.table(pd.DataFrame(hourly_data))
+        except Exception as e:
+            st.warning(f"⚠️ Gagal mengambil data hourly forecast: {e}")
     else:
         st.info("Belum ada data OpenWeather.")
 
+# === KOLOM 2: BMKG OCR ===
 with col2:
     st.header("🛰️ BMKG via OCR (Google Sheets)")
     try:
@@ -159,4 +178,4 @@ with col2:
     except Exception as e:
         st.warning(f"⚠️ Gagal ambil data dari Sheet BMKG: {e}")
 
-st.caption("🔁 Auto-updated every 15 minutes • Left: OpenWeather API • Right: BMKG OCR via Sheets")
+st.caption("🔁 Auto-updated every 15 minutes • Kiri: OpenWeather API • Kanan: BMKG OCR via Google Sheets")
