@@ -177,13 +177,34 @@ with col2:
     except Exception as e:
         st.warning(f"⚠️ Gagal baca BMKG Real-Time: {e}")
 
-    # === Forecast BMKG OCR
-    try:
-        df_forecast = ambil_forecast_bmkg()
-        if not df_forecast.empty:
-            st.subheader("📆 Forecast BMKG (OCR)")
-            st.dataframe(df_forecast)
-    except Exception as e:
-        st.warning(f"⚠️ Gagal ambil forecast BMKG: {e}")
+# === Forecast BMKG OCR (jam-jaman)
+try:
+    df_forecast = ambil_forecast_bmkg()
+    if not df_forecast.empty:
+        st.subheader("📆 Forecast BMKG (OCR)")
+
+        # Hapus kolom Capture Time kalau ada
+        if 'Capture Time' in df_forecast.columns:
+            df_forecast = df_forecast.drop(columns=['Capture Time'])
+
+        # Format waktu: 14.00 → 14:00 WIB
+        df_forecast['Time'] = df_forecast['Time'].str.replace('.', ':', regex=False) + " WIB"
+
+        # Urutkan berdasarkan jam
+        def jam_to_int(t):
+            try:
+                return int(t.split(":")[0])
+            except:
+                return 99
+
+        df_forecast = df_forecast.sort_values(by='Time', key=lambda x: x.map(jam_to_int))
+
+        # Tampilkan sebagai tabel statis (lebih mirip kartu)
+        st.table(df_forecast.reset_index(drop=True))
+    else:
+        st.info("Belum ada data forecast dari BMKG.")
+except Exception as e:
+    st.warning(f"⚠️ Gagal ambil forecast BMKG: {e}")
+
 
 st.caption("🔁 Auto-refresh tiap 15 menit | Kiri: OpenWeather API • Kanan: BMKG OCR + Forecast")
