@@ -190,7 +190,7 @@ try:
         # Format waktu: 14.00 → 14:00 WIB
         df_forecast = df_forecast[df_forecast['Time'].str.contains(r'^\d{2}[.:]\d{2}$', regex=True, na=False)]
         df_forecast['Time'] = df_forecast['Time'].str.replace('.', ':', regex=False) + " WIB"
-        
+
         # Urutkan berdasarkan jam
         def jam_to_int(t):
             try:
@@ -202,13 +202,7 @@ try:
 
         # Tampilkan sebagai tabel statis (lebih mirip kartu)
         st.table(df_forecast.reset_index(drop=True))
-    else:
-        st.info("Belum ada data forecast dari BMKG.")
 except Exception as e:
     st.warning(f"⚠️ Gagal ambil forecast BMKG: {e}")
-
-st.text("Kolom tersedia: " + ", ".join(df_forecast.columns))
-st.text(f"Jumlah baris: {len(df_forecast)}")
-
 
 st.caption("🔁 Auto-refresh tiap 15 menit | Kiri: OpenWeather API • Kanan: BMKG OCR + Forecast")
