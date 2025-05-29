@@ -205,4 +205,4 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Gagal ambil forecast BMKG: {e}")
 
-st.caption("🔁 Auto-refresh tiap 15 menit | Kiri: OpenWeather API • Kanan: BMKG OCR + Forecast")
+st.caption("🔁 Auto-refresh tiap 30 menit | Kiri: OpenWeather API • Kanan: BMKG OCR")
