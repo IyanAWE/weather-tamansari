@@ -9,7 +9,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from gspread_dataframe import set_with_dataframe
 from pytz import timezone
-import matplotlib.pyplot as plt
 
 # === DECODE BASE64 CREDENTIALS ===
 def fix_padding(b64_string):
@@ -30,8 +29,7 @@ wib = timezone("Asia/Jakarta")
 st.set_page_config(page_title="Cuaca Tamansari", page_icon="🌧️", layout="wide")
 st.title("🌧️ Dashboard Cuaca Tamansari: OpenWeather vs BMKG (OCR)")
 
-# === AUTO REFRESH TRIGGER ===
-refresh_trigger = st_autorefresh(interval=900000, key="data_refresh")  # 15 menit
+refresh_trigger = st_autorefresh(interval=900000, key="data_refresh")
 
 if 'data_history' not in st.session_state:
     st.session_state['data_history'] = []
@@ -61,7 +59,6 @@ def weather_emoji(desc):
     else:
         return "❓ " + desc
 
-# === SIMPAN KE GOOGLE SHEETS ===
 def simpan_ke_google_sheets(df):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
@@ -70,13 +67,11 @@ def simpan_ke_google_sheets(df):
 
     existing = sheet.get_all_values()
     if not existing:
-        header = list(df.columns)
-        sheet.append_row(header)
+        sheet.append_row(list(df.columns))
 
     last_row = df.tail(1).values.tolist()[0]
     sheet.append_row(last_row)
 
-# === BACA DATA DARI BMKG (Real-Time + Forecast) ===
 def ambil_data_bmkg_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
@@ -85,15 +80,6 @@ def ambil_data_bmkg_sheet():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
-def ambil_forecast_bmkg():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDS, scope)
-    client = gspread.authorize(creds)
-    worksheet = client.open_by_key(BMKG_SPREADSHEET_ID).worksheet("HourlyForecast")
-    data = worksheet.get_all_records()
-    return pd.DataFrame(data)
-
-# === FETCH OPENWEATHER DATA ===
 def fetch_weather():
     url = f"https://api.openweathermap.org/data/3.0/onecall?lat={LAT}&lon={LON}&appid={API_KEY}&units=metric&lang=en"
     try:
@@ -131,7 +117,6 @@ if do_refresh:
 else:
     temp, desc, humidity, wind, icon_url, timestamp = None, None, None, None, None, None
 
-# === UI: 2 KOLOM
 col1, col2 = st.columns(2)
 
 with col1:
@@ -162,51 +147,24 @@ with col2:
     except Exception as e:
         st.warning(f"⚠️ Gagal baca BMKG Real-Time: {e}")
 
-# === Forecast BMKG OCR (jam-jaman)
-try:
-    df_forecast = ambil_forecast_bmkg()
-    if not df_forecast.empty:
-        st.subheader("📆 Forecast BMKG (OCR)")
-        if 'Capture Time' in df_forecast.columns:
-            df_forecast = df_forecast.drop(columns=['Capture Time'])
-        df_forecast = df_forecast[df_forecast['Time'].str.contains(r'^\d{2}[.:]\d{2}$', regex=True, na=False)]
-        df_forecast['Time'] = df_forecast['Time'].str.replace('.', ':', regex=False) + " WIB"
-        def jam_to_int(t):
-            try:
-                return int(t.split(":")[0])
-            except:
-                return 99
-        df_forecast = df_forecast.sort_values(by='Time', key=lambda x: x.map(jam_to_int))
-        st.table(df_forecast.reset_index(drop=True))
-except Exception as e:
-    st.warning(f"⚠️ Gagal ambil forecast BMKG: {e}")
-
-# === GRAFIK SUHU HISTORIS ===
-def tampilkan_grafik_suhu(df_open, df_bmkg):
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(df_open["Time"], df_open["Temperature"], marker='o', label="OpenWeather")
-    ax.plot(df_bmkg["Time"], df_bmkg["Temperature"], marker='x', label="BMKG OCR")
-    ax.set_title("📊 Grafik Suhu Historis")
-    ax.set_xlabel("Waktu")
-    ax.set_ylabel("Suhu (°C)")
-    ax.legend()
-    ax.grid(True)
-    fig.autofmt_xdate()
-    st.pyplot(fig)
-
+# === GRAFIK SUHU DENGAN st.line_chart ===
 try:
     df_open = pd.DataFrame(st.session_state['data_history'])
     df_open["Time"] = pd.to_datetime(df_open["Time"], errors='coerce')
     df_open["Temperature"] = pd.to_numeric(df_open["Temperature"], errors='coerce')
     df_open = df_open.dropna(subset=["Time", "Temperature"])
 
-    df_bmkg = ambil_data_bmkg_sheet()
     df_bmkg["Time"] = pd.to_datetime(df_bmkg["Time"], errors='coerce')
     df_bmkg["Temperature"] = pd.to_numeric(df_bmkg["Temperature"], errors='coerce')
     df_bmkg = df_bmkg.dropna(subset=["Time", "Temperature"])
 
-    st.subheader("📈 Grafik Suhu Historis")
-    tampilkan_grafik_suhu(df_open.tail(12), df_bmkg.tail(12))
+    st.subheader("📈 Grafik Suhu Historis (12 data terakhir)")
+
+    st.write("**OpenWeather**")
+    st.line_chart(df_open.set_index("Time")[["Temperature"]].tail(12))
+
+    st.write("**BMKG (OCR)**")
+    st.line_chart(df_bmkg.set_index("Time")[["Temperature"]].tail(12))
 
 except Exception as e:
     st.warning(f"⚠️ Gagal tampilkan grafik suhu: {e}")
