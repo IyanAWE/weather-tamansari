@@ -161,10 +161,13 @@ try:
     st.subheader("📈 Grafik Suhu Historis (12 data terakhir)")
 
     st.write("**OpenWeather**")
-    st.line_chart(df_open.set_index("Time")[["Temperature"]].tail(12))
+    df_open["TimeLabel"] = df_open["Time"].dt.strftime("%H:%M")
+    st.line_chart(df_open.set_index("TimeLabel")[["Temperature"]].tail(12))
 
     st.write("**BMKG (OCR)**")
-    st.line_chart(df_bmkg.set_index("Time")[["Temperature"]].tail(12))
+    df_bmkg["TimeLabel"] = df_bmkg["Time"].dt.strftime("%H:%M")
+    st.line_chart(df_bmkg.set_index("TimeLabel")[["Temperature"]].tail(12))
+
 
 except Exception as e:
     st.warning(f"⚠️ Gagal tampilkan grafik suhu: {e}")
