@@ -105,17 +105,30 @@ def fetch_weather():
         df = pd.DataFrame(st.session_state['data_history'])
         simpan_ke_google_sheets(df)
 
-        return temp, desc, humidity, wind, icon_url, timestamp, data  # Return full data for forecast
+        return temp, desc, humidity, wind, icon_url, timestamp, data
     except Exception as e:
         st.error(f"Gagal ambil data OpenWeather: {e}")
         return None, None, None, None, None, None, None
 
 do_refresh = st.button("🔁 Refresh Now") or refresh_trigger > 0
 
-if do_refresh:
+if do_refresh or 'full_data' not in st.session_state:
     temp, desc, humidity, wind, icon_url, timestamp, full_data = fetch_weather()
+    st.session_state['full_data'] = full_data
+    st.session_state['temp'] = temp
+    st.session_state['desc'] = desc
+    st.session_state['humidity'] = humidity
+    st.session_state['wind'] = wind
+    st.session_state['icon_url'] = icon_url
+    st.session_state['timestamp'] = timestamp
 else:
-    temp, desc, humidity, wind, icon_url, timestamp, full_data = None, None, None, None, None, None, None
+    temp = st.session_state.get('temp')
+    desc = st.session_state.get('desc')
+    humidity = st.session_state.get('humidity')
+    wind = st.session_state.get('wind')
+    icon_url = st.session_state.get('icon_url')
+    timestamp = st.session_state.get('timestamp')
+    full_data = st.session_state.get('full_data')
 
 col1, col2 = st.columns(2)
 
@@ -128,20 +141,6 @@ with col1:
         st.metric("🌬️ Wind Speed", f"{wind} km/h")
         st.markdown(f"### {weather_emoji(desc)}")
         st.caption(f"Last updated: {timestamp}")
-
-        # Forecast 12 Jam OpenWeather
-        try:
-            if full_data and 'hourly' in full_data:
-                st.subheader("📆 Forecast 12 Jam (OpenWeather)")
-                hourly_forecast = full_data['hourly'][:12]
-                df_forecast = pd.DataFrame({
-                    "Time": [datetime.fromtimestamp(h['dt'], tz=wib).strftime('%H:%M') for h in hourly_forecast],
-                    "Temp (°C)": [h['temp'] for h in hourly_forecast],
-                    "Weather": [h['weather'][0]['description'].capitalize() for h in hourly_forecast]
-                })
-                st.dataframe(df_forecast)
-        except Exception as e:
-            st.warning(f"Gagal ambil data forecast: {e}")
     else:
         st.info("Belum ada data OpenWeather.")
 
@@ -161,7 +160,18 @@ with col2:
     except Exception as e:
         st.warning(f"⚠️ Gagal baca BMKG Real-Time: {e}")
 
-# === GRAFIK SUHU DENGAN st.line_chart ===
+# Forecast 12 Jam OpenWeather di bawah 2 kolom utama
+if full_data and 'hourly' in full_data:
+    st.subheader("📆 Forecast 12 Jam (OpenWeather)")
+    hourly_forecast = full_data['hourly'][:12]
+    df_forecast = pd.DataFrame({
+        "Time": [datetime.fromtimestamp(h['dt'], tz=wib).strftime('%H:%M') for h in hourly_forecast],
+        "Temp (°C)": [h['temp'] for h in hourly_forecast],
+        "Weather": [h['weather'][0]['description'].capitalize() for h in hourly_forecast]
+    })
+    st.dataframe(df_forecast)
+
+# Grafik suhu historis
 try:
     df_open = pd.DataFrame(st.session_state['data_history'])
     df_open["Time"] = pd.to_datetime(df_open["Time"], errors='coerce')
