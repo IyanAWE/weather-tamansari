@@ -105,17 +105,17 @@ def fetch_weather():
         df = pd.DataFrame(st.session_state['data_history'])
         simpan_ke_google_sheets(df)
 
-        return temp, desc, humidity, wind, icon_url, timestamp
+        return temp, desc, humidity, wind, icon_url, timestamp, data  # Return full data for forecast
     except Exception as e:
         st.error(f"Gagal ambil data OpenWeather: {e}")
-        return None, None, None, None, None, None
+        return None, None, None, None, None, None, None
 
 do_refresh = st.button("🔁 Refresh Now") or refresh_trigger > 0
 
 if do_refresh:
-    temp, desc, humidity, wind, icon_url, timestamp = fetch_weather()
+    temp, desc, humidity, wind, icon_url, timestamp, full_data = fetch_weather()
 else:
-    temp, desc, humidity, wind, icon_url, timestamp = None, None, None, None, None, None
+    temp, desc, humidity, wind, icon_url, timestamp, full_data = None, None, None, None, None, None, None
 
 col1, col2 = st.columns(2)
 
@@ -128,6 +128,20 @@ with col1:
         st.metric("🌬️ Wind Speed", f"{wind} km/h")
         st.markdown(f"### {weather_emoji(desc)}")
         st.caption(f"Last updated: {timestamp}")
+
+        # Forecast 12 Jam OpenWeather
+        try:
+            if full_data and 'hourly' in full_data:
+                st.subheader("📆 Forecast 12 Jam (OpenWeather)")
+                hourly_forecast = full_data['hourly'][:12]
+                df_forecast = pd.DataFrame({
+                    "Time": [datetime.fromtimestamp(h['dt'], tz=wib).strftime('%H:%M') for h in hourly_forecast],
+                    "Temp (°C)": [h['temp'] for h in hourly_forecast],
+                    "Weather": [h['weather'][0]['description'].capitalize() for h in hourly_forecast]
+                })
+                st.dataframe(df_forecast)
+        except Exception as e:
+            st.warning(f"Gagal ambil data forecast: {e}")
     else:
         st.info("Belum ada data OpenWeather.")
 
@@ -167,7 +181,6 @@ try:
     st.write("**BMKG (OCR)**")
     df_bmkg["TimeLabel"] = df_bmkg["Time"].dt.strftime("%H:%M")
     st.line_chart(df_bmkg.set_index("TimeLabel")[["Temperature"]].tail(12))
-
 
 except Exception as e:
     st.warning(f"⚠️ Gagal tampilkan grafik suhu: {e}")
