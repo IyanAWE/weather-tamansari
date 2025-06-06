@@ -160,6 +160,15 @@ with col2:
     except Exception as e:
         st.warning(f"⚠️ Gagal baca BMKG Real-Time: {e}")
 
+# Tampilkan data dalam bentuk tabel
+st.subheader("📊 Tabel Data Historis BMKG dan OpenWeather")
+st.write("**Data Historis OpenWeather**")
+st.dataframe(pd.DataFrame(st.session_state['data_history']))  # Menampilkan data OpenWeather yang sudah difilter
+
+st.write("**Data Historis BMKG**")
+df_bmkg = ambil_data_bmkg_sheet()
+st.dataframe(df_bmkg)  # Menampilkan data BMKG yang sudah difilter
+
 # Grafik suhu historis
 try:
     df_open = pd.DataFrame(st.session_state['data_history'])
