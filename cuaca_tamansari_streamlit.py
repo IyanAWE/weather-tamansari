@@ -193,4 +193,4 @@ try:
 except Exception as e:
     st.warning(f"⚠️ Gagal tampilkan grafik suhu: {e}")
 
-st.caption("🔁 Auto-refresh tiap 30 menit | Kiri: OpenWeather API • Kanan: BMKG OCR + Grafik")
+st.caption("🔁 Auto-refresh tiap 30 menit | Kiri: OpenWeather API • Kanan: BMKG OCR + Grafik sbfhsdbfuoisadbugyasbdguyiav")
